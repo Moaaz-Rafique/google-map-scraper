@@ -18,12 +18,32 @@ def getPageHtml(url):
     with sync_playwright() as p:
         browser = p.webkit.launch()
         page =  browser.new_page()        
-        page.evaluate("() => { document.body.style.zoom=0.25; }")
+        # page.evaluate("() => { document.body.style.zoom=0.25; }")
         page.goto(url)
         # time.sleep(5) #uncomment to if network is slow
         html = page.content()        
         browser.close()
         return html
+def getSearchPageHtml(url, term):
+    with sync_playwright() as p:
+        browser = p.webkit.launch()
+        page =  browser.new_page()        
+        page.goto(url)
+        time.sleep(5)
+        print('Waiting for page to load...')
+
+        page.hover(f"[aria-label='Results for {term}']")
+        
+        #uncomment to if network is slow
+        print('Scrolling Now...')
+        for i in range(30): ### increase for more data
+            # print(i)        
+            page.mouse.wheel(0, 5000)   
+            time.sleep(1)
+        html = page.content()        
+        browser.close()
+        return html
+
 def findnth(string, substring, n):
     parts = string.split(substring, n + 1)
     if len(parts) <= n + 1:
@@ -31,26 +51,27 @@ def findnth(string, substring, n):
     return len(string) - len(parts[-1]) - len(substring)
 
 search_term = "stores" # you can change the term for different Items
-base_url = f'https://www.google.com/maps/search/{search_term}/'
+base_url = f"https://www.google.com/maps/search/{search_term}/"
 # long, lat = 24.9227021,67.1200746 # change the longitude  and latitude values
 get_link = input("Paste Your Url Here: ")
 long=get_link[get_link.find('@')+1:get_link.find(',')]
 lat=get_link[get_link.find(',')+1:findnth( get_link,',',1)]
-url = f"{base_url}@{long},{lat},20z"
+url = f"{base_url}@{long},{lat},8z"
 print(url)
-html = getPageHtml(url)
-searchSoup = BeautifulSoup(html, features="lxml")
+html = getSearchPageHtml(url, search_term)
+searchSoup = BeautifulSoup(html, features="html.parser")
 
 results_div = searchSoup.find("div", {"aria-label":f"Results for {search_term}"})
 
 records = []
 if results_div:
     results_a = results_div.findAll("a")
-
+    print(f"Getting Data for {len(results_a)} stores")
+    
     for i in results_a:
         record = dict()
         html = getPageHtml(i["href"])
-        res_soup = BeautifulSoup(html, features='lxml')    
+        res_soup = BeautifulSoup(html, features='html.parser')    
 
         
         if res_soup:
@@ -107,7 +128,16 @@ else:
 
 # To save the list of records to a csv file
 
-keys = records[0].keys()
+keys = [
+    'store name',
+    'store type',
+    'store Address',
+    'store website url',
+    'store phone number',
+    'google maps url',
+    'Links for Images of Store',
+    'ExtraData'
+]
 with open('Places.csv', 'w',encoding="utf-8", errors='surrogatepass', newline='') as output_file:
     dict_writer = csv.DictWriter(output_file, keys)
     dict_writer.writeheader()
