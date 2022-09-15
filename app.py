@@ -1,3 +1,4 @@
+from email import header
 from gettext import gettext
 import sys
 from playwright.sync_api import sync_playwright
@@ -26,14 +27,19 @@ def getPageHtml(url):
         return html
 def getSearchPageHtml(url, term):
     with sync_playwright() as p:
-        browser = p.webkit.launch()
+        browser = p.webkit.launch(headless=False)
         page =  browser.new_page()        
         page.goto(url)
-        time.sleep(5)
-        print('Waiting for page to load...')
-
-        page.hover(f"[aria-label='Results for {term}']")
         
+        print('Waiting for page to load...')
+        # page.hover(f"[aria-label='Results for {term}']")
+        page.hover(f"canvas")
+        print('Loading map...')
+        page.mouse.wheel(0, 50)
+        time.sleep(3)
+        page.locator(f"button:has-text('Search this area')").click()                
+        time.sleep(3)        
+        page.hover(f"[aria-label='Results for {term}']")
         #uncomment to if network is slow
         print('Scrolling Now...')
         for i in range(30): ### increase for more data
@@ -51,12 +57,15 @@ def findnth(string, substring, n):
     return len(string) - len(parts[-1]) - len(substring)
 
 search_term = "stores" # you can change the term for different Items
+
+
 base_url = f"https://www.google.com/maps/search/{search_term}/"
 # long, lat = 24.9227021,67.1200746 # change the longitude  and latitude values
 get_link = input("Paste Your Url Here: ")
 long=get_link[get_link.find('@')+1:get_link.find(',')]
 lat=get_link[get_link.find(',')+1:findnth( get_link,',',1)]
-url = f"{base_url}@{long},{lat},8z"
+zoom = input("Enter zoom value: ")
+url = f"{base_url}@{long},{lat},{zoom}z"
 print(url)
 html = getSearchPageHtml(url, search_term)
 searchSoup = BeautifulSoup(html, features="html.parser")
@@ -114,13 +123,13 @@ if results_div:
         else:
             print("Page Did not load correctly")
         records.append(record)
-# store name
-# jsaction="pane.rating.category"
-# store type
-# store Address
-# store website url
-# store phone number
-# google maps url
+        # store name
+        # jsaction="pane.rating.category"
+        # store type
+        # store Address
+        # store website url
+        # store phone number
+        # google maps url
 else:     
     print("The link was not loaded properly")
     print("Aborting...")
@@ -138,7 +147,7 @@ keys = [
     'Links for Images of Store',
     'ExtraData'
 ]
-with open('Places.csv', 'w',encoding="utf-8", errors='surrogatepass', newline='') as output_file:
+with open('Places2.csv', 'w',encoding="utf-8", errors='surrogatepass', newline='') as output_file:
     dict_writer = csv.DictWriter(output_file, keys)
     dict_writer.writeheader()
     dict_writer.writerows(records)
